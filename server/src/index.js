@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const authRoutes = require('./routes/auth.routes');
+const roomRoutes = require('./routes/room.routes');
 //allow you app to understand .env variables
 dotenv.config();
 
@@ -10,9 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const authRoutes = require('./routes/auth.routes');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/rooms', roomRoutes);
 
 app.get('/', (req, res) => {
     res.send('Hello World!');
