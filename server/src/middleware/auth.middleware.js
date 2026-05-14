@@ -22,4 +22,13 @@ function authorizeAdmin(req, res, next) {
     }
 }
 
-module.exports = { protect, authorizeAdmin };
+function restrictTo(...roles) {
+    return function(req, res, next) {
+        if (roles.includes(req.user.role)) {
+            next();
+        } else {
+            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        }
+    }
+}
+module.exports = { protect, restrictTo };
