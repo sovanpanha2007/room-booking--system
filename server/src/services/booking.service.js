@@ -1,4 +1,5 @@
 const prisma = require('../utils/prisma.js')
+const { sendEmail } = require('../utils/email.js');
 const bcrypt = require('bcryptjs');
 
 async function detectConflict(roomId, startTime, endTime) {
@@ -33,6 +34,8 @@ async function createBooking(userId, roomId, startTime, endTime, passcode) {
             passcodeHash: passcodeHash
         }
     });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    await sendEmail(user.email, booking);
     return booking;
 }
 
