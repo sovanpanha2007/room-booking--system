@@ -59,6 +59,7 @@ function App() {
   const [bookingPasscode, setBookingPasscode] = useState('');
   const [autoGenPasscode, setAutoGenPasscode] = useState(true);
   const [createdBookingDetails, setCreatedBookingDetails] = useState(null);
+  const [bookingUserEmail, setBookingUserEmail] = useState('');
 
   // General Passcode Input Modal State (for Cancel & Check-In)
   const [actionPasscode, setActionPasscode] = useState('');
@@ -364,7 +365,8 @@ function App() {
           roomId: selectedRoom.id,
           startTime: new Date(bookingStart).toISOString(),
           endTime: new Date(bookingEnd).toISOString(),
-          passcode: passcodeToSend
+          passcode: passcodeToSend,
+          userEmail: user.role === 'ADMIN' ? bookingUserEmail : undefined
         })
       });
       const data = await res.json();
@@ -375,6 +377,7 @@ function App() {
         setBookingStart('');
         setBookingEnd('');
         setBookingPasscode('');
+        setBookingUserEmail('');
         fetchBookingsSilent();
       } else {
         setErrorMessage(data.message);
@@ -1211,6 +1214,20 @@ function App() {
               )}
 
               <form onSubmit={handleCreateBookingSubmit}>
+                {user && user.role === 'ADMIN' && (
+                  <div className="input-group animate-fade-in">
+                    <label htmlFor="book-user-email">User Email Address (Book on behalf of)</label>
+                    <input 
+                      type="email" 
+                      id="book-user-email" 
+                      className="input-field" 
+                      placeholder="user@rms.com" 
+                      value={bookingUserEmail}
+                      onChange={(e) => setBookingUserEmail(e.target.value)}
+                      required 
+                    />
+                  </div>
+                )}
                 <div className="input-group">
                   <label htmlFor="book-start">Start Time</label>
                   <input 

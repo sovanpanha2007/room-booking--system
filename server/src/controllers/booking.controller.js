@@ -3,8 +3,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const { ValidationError } = require('../utils/errors');
 
 const createBooking = asyncHandler(async (req, res, next) => {
-    const { roomId, startTime, endTime, passcode } = req.body;
-    const { userId } = req.user;
+    const { roomId, startTime, endTime, passcode, userEmail } = req.body;
+    const { userId, role } = req.user;
 
     // Validate presence
     if (!roomId || !startTime || !endTime) {
@@ -31,10 +31,12 @@ const createBooking = asyncHandler(async (req, res, next) => {
     // Call service to create booking
     const { booking, rawPasscode } = await bookingService.createBooking({
         userId,
+        role,
         roomId,
         startTime: start,
         endTime: end,
-        passcode
+        passcode,
+        userEmail
     });
 
     res.status(201).json({

@@ -1,7 +1,7 @@
 const prisma = require('../utils/prisma.js');
 const { sendEmail } = require('../utils/email.js');
 const bcrypt = require('bcryptjs');
-const { ConflictError, NotFoundError, ForbiddenError, UnauthorizedError, AppError } = require('../utils/errors');
+const { ConflictError, NotFoundError, ForbiddenError, UnauthorizedError, ValidationError, AppError } = require('../utils/errors');
 const websocketService = require('./websocket.service');
 
 async function detectConflict(roomId, startTime, endTime, excludeBookingId = null) {
@@ -23,15 +23,34 @@ async function detectConflict(roomId, startTime, endTime, excludeBookingId = nul
     return existingBooking;
 }
 
-async function createBooking({ userId, roomId, startTime, endTime, passcode }) {
+async function createBooking({ userId, role, roomId, startTime, endTime, passcode, userEmail }) {
     const room = await prisma.room.findUnique({ where: { id: roomId } });
     if (!room || !room.isActive) {
         throw new NotFoundError('Room not found or is currently inactive');
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-        throw new NotFoundError('User not found');
+    let targetUserId = userId;
+    let targetUserEmail = null;
+
+    if (role === 'ADMIN') {
+        if (!userEmail) {
+            throw new ValidationError('Administrators must specify a user email to book on behalf of');
+        }
+        const targetUser = await prisma.user.findUnique({ where: { email: userEmail } });
+        if (!targetUser) {
+            throw new NotFoundError(`User with email "${userEmail}" not found`);
+        }
+        if (targetUser.id === userId) {
+            throw new ForbiddenError('Administrators cannot book rooms for themselves. Please book on behalf of a standard user');
+        }
+        targetUserId = targetUser.id;
+        targetUserEmail = targetUser.email;
+    } else {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            throw new NotFoundError('User not found');
+        }
+        targetUserEmail = user.email;
     }
 
     const conflict = await detectConflict(roomId, startTime, endTime);
@@ -44,11 +63,11 @@ async function createBooking({ userId, roomId, startTime, endTime, passcode }) {
     const passcodeHash = await bcrypt.hash(rawPasscode, 10);
 
     // Admins bypass PENDING confirmation state and book immediately in CONFIRMED state
-    const initialStatus = user.role === 'ADMIN' ? 'CONFIRMED' : 'PENDING';
+    const initialStatus = role === 'ADMIN' ? 'CONFIRMED' : 'PENDING';
 
     const booking = await prisma.booking.create({
         data: {
-            userId,
+            userId: targetUserId,
             roomId,
             startTime,
             endTime,
@@ -62,9 +81,9 @@ async function createBooking({ userId, roomId, startTime, endTime, passcode }) {
 
     // Graceful Email Notification (senior standard: don't crash booking if SMTP fails)
     try {
-        await sendEmail(user.email, booking, rawPasscode);
+        await sendEmail(targetUserEmail, booking, rawPasscode);
     } catch (emailError) {
-        console.error(`[Email Error] Failed to send confirmation email to ${user.email}:`, emailError.message);
+        console.error(`[Email Error] Failed to send confirmation email to ${targetUserEmail}:`, emailError.message);
     }
 
     // Broadcast booking creation live
