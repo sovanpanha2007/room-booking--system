@@ -29,6 +29,11 @@ async function createBooking({ userId, roomId, startTime, endTime, passcode }) {
         throw new NotFoundError('Room not found or is currently inactive');
     }
 
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+        throw new NotFoundError('User not found');
+    }
+
     const conflict = await detectConflict(roomId, startTime, endTime);
     if (conflict) {
         throw new ConflictError('The room is already booked for the specified timeframe');
@@ -38,21 +43,22 @@ async function createBooking({ userId, roomId, startTime, endTime, passcode }) {
     const rawPasscode = passcode || Math.floor(100000 + Math.random() * 900000).toString();
     const passcodeHash = await bcrypt.hash(rawPasscode, 10);
 
+    // Admins bypass PENDING confirmation state and book immediately in CONFIRMED state
+    const initialStatus = user.role === 'ADMIN' ? 'CONFIRMED' : 'PENDING';
+
     const booking = await prisma.booking.create({
         data: {
             userId,
             roomId,
             startTime,
             endTime,
-            status: "PENDING",
+            status: initialStatus,
             passcodeHash: passcodeHash
         },
         include: {
             room: true
         }
     });
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
 
     // Graceful Email Notification (senior standard: don't crash booking if SMTP fails)
     try {
