@@ -955,34 +955,36 @@ function App() {
                                 </td>
                                 <td>
                                   <div style={{ display: 'flex', gap: '8px' }}>
-                                    {/* Cancel triggers passcode prompt */}
-                                    {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
-                                      <>
-                                        <button 
-                                          className="btn btn-secondary" 
-                                          style={{ padding: '6px 12px', fontSize: '12.5px' }}
-                                          onClick={() => {
-                                            setSelectedBooking(booking);
-                                            setActionPasscode('');
-                                            setErrorMessage('');
-                                            setActiveModal('checkin');
-                                          }}
-                                        >
-                                          Check In
-                                        </button>
-                                        <button 
-                                          className="btn btn-secondary" 
-                                          style={{ padding: '6px 12px', fontSize: '12.5px', color: 'var(--danger)' }}
-                                          onClick={() => {
-                                            setSelectedBooking(booking);
-                                            setActionPasscode('');
-                                            setErrorMessage('');
-                                            setActiveModal('cancel');
-                                          }}
-                                        >
-                                          Cancel
-                                        </button>
-                                      </>
+                                    {/* Check-In is strictly allowed only when status is CONFIRMED */}
+                                    {booking.status === 'CONFIRMED' && (
+                                      <button 
+                                        className="btn btn-secondary" 
+                                        style={{ padding: '6px 12px', fontSize: '12.5px' }}
+                                        onClick={() => {
+                                          setSelectedBooking(booking);
+                                          setActionPasscode('');
+                                          setErrorMessage('');
+                                          setActiveModal('checkin');
+                                        }}
+                                      >
+                                        Check In
+                                      </button>
+                                    )}
+
+                                    {/* Standard users can only cancel PENDING bookings. Admins can cancel PENDING or CONFIRMED. */}
+                                    {((booking.status === 'PENDING') || (booking.status === 'CONFIRMED' && user && user.role === 'ADMIN')) && (
+                                      <button 
+                                        className="btn btn-secondary" 
+                                        style={{ padding: '6px 12px', fontSize: '12.5px', color: 'var(--danger)' }}
+                                        onClick={() => {
+                                          setSelectedBooking(booking);
+                                          setActionPasscode('');
+                                          setErrorMessage('');
+                                          setActiveModal('cancel');
+                                        }}
+                                      >
+                                        Cancel
+                                      </button>
                                     )}
                                   </div>
                                 </td>
