@@ -1,34 +1,59 @@
 const jwt = require('jsonwebtoken');
+const { UnauthorizedError, ForbiddenError } = require('../utils/errors');
+const prisma = require('../utils/prisma');
 
-function protect(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-        return res.status(401).json({ success: false, message: 'No token provided' });
-    }
-    const token = authHeader.split(" ")[1]; // After Bearer token
+async function protect(req, res, next) {
     try {
-        const verified = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = verified;
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return next(new UnauthorizedError('No token provided or invalid authorization format. Use Bearer <token>'));
+        }
+
+        const token = authHeader.split(' ')[1];
+        if (!token) {
+            return next(new UnauthorizedError('No token provided'));
+        }
+
+        let verified;
+        try {
+            verified = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (err) {
+            return next(new UnauthorizedError('Invalid or expired token'));
+        }
+
+        // Fetch user from DB to verify they still exist and have the same role
+        const user = await prisma.user.findUnique({
+            where: { id: verified.userId }
+        });
+
+        if (!user) {
+            return next(new UnauthorizedError('The user belonging to this token no longer exists'));
+        }
+
+        // Set req.user to standard verified object
+        req.user = {
+            userId: user.id,
+            email: user.email,
+            role: user.role // from DB (so it's always up-to-date, e.g. "USER" or "ADMIN")
+        };
+
         next();
     } catch (error) {
-        return res.status(401).json({ success: false, message: 'Invalid token' });
-    }
-}
-function authorizeAdmin(req, res, next) {
-    if (req.user.role == 'admin') {
-        next();
-    } else {
-        return res.status(403).json({ success: false, message: 'Unauthorized' });
+        next(error);
     }
 }
 
 function restrictTo(...roles) {
     return function(req, res, next) {
-        if (roles.includes(req.user.role)) {
-            next();
-        } else {
-            return res.status(403).json({ success: false, message: 'Unauthorized' });
+        // Enforce role checks matching uppercase strings from DB
+        if (!req.user || !roles.includes(req.user.role)) {
+            return next(new ForbiddenError('You do not have permission to perform this action'));
         }
-    }
+        next();
+    };
 }
-module.exports = { protect, restrictTo };
+
+module.exports = {
+    protect,
+    restrictTo
+};

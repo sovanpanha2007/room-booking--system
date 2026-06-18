@@ -4,9 +4,10 @@ const roomController = require('../controllers/room.controller');
 
 const router = express.Router();
 
-router.get('/',protect,roomController.getAllRooms);
-router.post('/',protect,restrictTo('ADMIN'), roomController.createRoom);
-router.put('/:id',protect,restrictTo('ADMIN'), roomController.updateRoom);
-router.delete('/:id',protect,restrictTo('ADMIN'), roomController.deleteRoom);
+router.use(protect);
+router.get('/',roomController.getAllRooms);
+router.post('/',restrictTo('ADMIN'), roomController.createRoom);
+router.put('/:id',restrictTo('ADMIN'), roomController.updateRoom);
+router.delete('/:id',restrictTo('ADMIN'), roomController.deleteRoom);
 
 module.exports = router;
