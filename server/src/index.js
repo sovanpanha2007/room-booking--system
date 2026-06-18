@@ -33,7 +33,7 @@ app.get('/', (req, res) => {
 });
 
 // Fallback for unhandled routes
-app.all('*', (req, res, next) => {
+app.use((req, res, next) => {
     const { NotFoundError } = require('./utils/errors');
     next(new NotFoundError(`Can't find ${req.originalUrl} on this server`));
 });
