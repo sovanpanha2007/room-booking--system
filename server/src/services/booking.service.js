@@ -68,25 +68,12 @@ async function createBooking({ userId, roomId, startTime, endTime, passcode }) {
 }
 
 async function getBookings(userId, role) {
-    if (role === 'ADMIN') {
-        // Admins can see all bookings
-        return await prisma.booking.findMany({
-            include: {
-                room: true,
-                user: {
-                    select: { id: true, name: true, email: true, role: true }
-                }
-            },
-            orderBy: { startTime: 'desc' }
-        });
-    } else {
-        // Users can only see their own bookings
-        return await prisma.booking.findMany({
-            where: { userId },
-            include: { room: true },
-            orderBy: { startTime: 'desc' }
-        });
-    }
+    // Return only the bookings belonging to the requesting user (regardless of whether they are an Admin or a standard User)
+    return await prisma.booking.findMany({
+        where: { userId },
+        include: { room: true },
+        orderBy: { startTime: 'desc' }
+    });
 }
 
 async function updateBookingById({ id, startTime, endTime, passcode, userId, role }) {
