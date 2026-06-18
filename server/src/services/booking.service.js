@@ -170,6 +170,11 @@ async function cancelBooking({ id, passcode, userId, role }) {
         throw new AppError(`Cannot cancel a booking that is ${booking.status.toLowerCase()}`, 400);
     }
 
+    // Standard users cannot cancel bookings after they have been confirmed
+    if (role !== 'ADMIN' && booking.status === 'CONFIRMED') {
+        throw new ForbiddenError('You cannot cancel this booking after it has been confirmed. Please contact an administrator.');
+    }
+
     // Passcode check (Bypassed if Admin)
     if (role !== 'ADMIN') {
         if (!passcode) {
@@ -203,11 +208,14 @@ async function checkInBooking({ id, passcode, userId, role }) {
         throw new ForbiddenError('You are not authorized to check in to this booking');
     }
 
-    // Check status
-    if (booking.status === 'CHECKED_IN') {
-        throw new AppError('Booking is already checked in', 400);
-    }
-    if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+    // Check status: check-in is ONLY allowed for CONFIRMED bookings. PENDING/CANCELLED/NO_SHOW etc are blocked.
+    if (booking.status !== 'CONFIRMED') {
+        if (booking.status === 'CHECKED_IN') {
+            throw new AppError('Booking is already checked in', 400);
+        }
+        if (booking.status === 'PENDING') {
+            throw new AppError('Cannot check in. The booking must be confirmed by an administrator first.', 400);
+        }
         throw new AppError(`Cannot check in to a booking that is ${booking.status.toLowerCase()}`, 400);
     }
 
@@ -222,15 +230,12 @@ async function checkInBooking({ id, passcode, userId, role }) {
         }
     }
 
-    // Time window validation: check-in is allowed from 15 minutes before start time until booking end time
+    // Time window validation: check-in is strictly allowed within the duration (between start and end times)
     const now = new Date();
-    const allowedStartCheckIn = new Date(booking.startTime.getTime() - 15 * 60 * 1000); // 15 mins before
-    const allowedEndCheckIn = booking.endTime;
-
-    if (now < allowedStartCheckIn) {
-        throw new AppError('It is too early to check in for this booking', 400);
+    if (now < booking.startTime) {
+        throw new AppError('It is too early to check in. Check-in is only allowed within the booking duration', 400);
     }
-    if (now > allowedEndCheckIn) {
+    if (now > booking.endTime) {
         throw new AppError('The booking time window has expired. Check-in is no longer allowed', 400);
     }
 
