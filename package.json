@@ -1,0 +1,17 @@
+{
+  "name": "room-booking-system",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build:client": "npm run build -w client",
+    "db:seed": "npm run db:seed -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
