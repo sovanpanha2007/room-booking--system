@@ -44,7 +44,7 @@ async function protect(req, res, next) {
 }
 
 function restrictTo(...roles) {
-    return function(req, res, next) {
+    return function (req, res, next) {
         // Enforce role checks matching uppercase strings from DB
         if (!req.user || !roles.includes(req.user.role)) {
             return next(new ForbiddenError('You do not have permission to perform this action'));

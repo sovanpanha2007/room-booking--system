@@ -249,10 +249,70 @@ async function checkInBooking({ id, passcode, userId, role }) {
     return updatedBooking;
 }
 
+async function recheckPasscode({ id, password, userId, role }) {
+    const booking = await prisma.booking.findUnique({ 
+        where: { id },
+        include: { room: true }
+    });
+
+    if (!booking) {
+        throw new NotFoundError('Booking not found');
+    }
+
+    // Authorization: Must be owner of booking
+    if (booking.userId !== userId && role !== 'ADMIN') {
+        throw new ForbiddenError('You are not authorized to access this booking');
+    }
+
+    // Retrieve requesting user to verify password
+    const requestingUser = await prisma.user.findUnique({
+        where: { id: userId }
+    });
+
+    if (!requestingUser) {
+        throw new NotFoundError('Requesting user not found');
+    }
+
+    // Compare passwords
+    const isPasswordValid = await bcrypt.compare(password, requestingUser.password);
+    if (!isPasswordValid) {
+        throw new UnauthorizedError('Invalid account password');
+    }
+
+    // Generate a new passcode (regenerating is the only way to recheck it since original is hashed)
+    const rawPasscode = Math.floor(100000 + Math.random() * 900000).toString();
+    const passcodeHash = await bcrypt.hash(rawPasscode, 10);
+
+    const updatedBooking = await prisma.booking.update({
+        where: { id },
+        data: { passcodeHash },
+        include: { room: true }
+    });
+
+    // Retrieve user object to get their email address for notification
+    const targetUser = await prisma.user.findUnique({
+        where: { id: booking.userId }
+    });
+    
+    if (targetUser) {
+        try {
+            await sendEmail(targetUser.email, updatedBooking, rawPasscode);
+        } catch (emailError) {
+            console.error(`[Email Error] Failed to send rechecked passcode email:`, emailError.message);
+        }
+    }
+
+    // Broadcast booking update
+    websocketService.broadcast('booking_updated', updatedBooking);
+
+    return { booking: updatedBooking, rawPasscode };
+}
+
 module.exports = {
     createBooking,
     getBookings,
     updateBookingById,
     cancelBooking,
-    checkInBooking
+    checkInBooking,
+    recheckPasscode
 };

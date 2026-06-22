@@ -10,4 +10,5 @@ router.post('/',restrictTo('ADMIN'), roomController.createRoom);
 router.put('/:id',restrictTo('ADMIN'), roomController.updateRoom);
 router.delete('/:id',restrictTo('ADMIN'), roomController.deleteRoom);
 
+
 module.exports = router;

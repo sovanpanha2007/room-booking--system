@@ -15,7 +15,7 @@ const WS_BASE_URL = 'ws://localhost:5001';
 function App() {
   // Theme state
   const [darkTheme, setDarkTheme] = useState(() => {
-    return localStorage.getItem('theme') === 'dark' || 
+    return localStorage.getItem('theme') === 'dark' ||
       (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
 
@@ -35,12 +35,12 @@ function App() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
+
   // Modals & Action States
   const [activeModal, setActiveModal] = useState(null); // 'book', 'checkin', 'cancel', 'room_create', 'room_edit', 'success_pin'
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  
+
   // Booking Form State
   const [bookingStart, setBookingStart] = useState('');
   const [bookingEnd, setBookingEnd] = useState('');
@@ -57,7 +57,9 @@ function App() {
   const [roomName, setRoomName] = useState('');
   const [roomCapacity, setRoomCapacity] = useState('');
   const [roomLocation, setRoomLocation] = useState('');
-  
+  const [roomActive, setRoomActive] = useState(true);
+  const [accountPassword, setAccountPassword] = useState('');
+
   // Auth Form States
   const [isRegister, setIsRegister] = useState(false);
   const [authName, setAuthName] = useState('');
@@ -137,7 +139,7 @@ function App() {
   // Handle live updates and show alert banners
   const handleWebSocketEvent = (payload) => {
     const { event, data } = payload;
-    
+
     // Skip welcome connection event
     if (event === 'connected') return;
 
@@ -194,7 +196,7 @@ function App() {
   const addNotification = (message, type) => {
     const id = Date.now();
     setNotifications((prev) => [...prev, { id, message, type }]);
-    
+
     setTimeout(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     }, 4500);
@@ -272,9 +274,9 @@ function App() {
     e.preventDefault();
     setLoading(true);
     setErrorMessage('');
-    
+
     const url = isRegister ? `${API_BASE_URL}/auth/register` : `${API_BASE_URL}/auth/login`;
-    const payload = isRegister 
+    const payload = isRegister
       ? { name: authName, email: authEmail, password: authPassword }
       : { email: authEmail, password: authPassword };
 
@@ -285,7 +287,7 @@ function App() {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      
+
       if (data.success) {
         if (isRegister) {
           setIsRegister(false);
@@ -329,7 +331,7 @@ function App() {
   const handleCreateBookingSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    
+
     const passcodeToSend = autoGenPasscode ? '' : bookingPasscode;
     if (!autoGenPasscode && (!bookingPasscode || bookingPasscode.length < 4)) {
       setErrorMessage('Custom passcode must be at least 4 characters');
@@ -353,7 +355,7 @@ function App() {
         })
       });
       const data = await res.json();
-      
+
       if (data.success) {
         setCreatedBookingDetails(data.data);
         setActiveModal('success_pin');
@@ -375,7 +377,7 @@ function App() {
   const handleCheckInSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-    
+
     if (!actionPasscode && user.role !== 'ADMIN') {
       setErrorMessage('Passcode is required');
       return;
@@ -448,7 +450,14 @@ function App() {
   const handleCreateRoomSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
-
+    if (isNaN(parseInt(roomNumber)) || isNaN(parseInt(roomCapacity))) {
+      setErrorMessage('Room number and capacity must be numbers');
+      return;
+    }
+    if (parseInt(roomNumber) <= 0 || parseInt(roomCapacity) <= 0) {
+      setErrorMessage('Room number and capacity must be positive numbers');
+      return;
+    }
     if (!roomNumber || !roomName || !roomCapacity || !roomLocation) {
       setErrorMessage('All room specifications are required');
       return;
@@ -484,6 +493,95 @@ function App() {
       }
     } catch (err) {
       setErrorMessage('Failed to create new room');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateRoomSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+    if (isNaN(parseInt(roomNumber)) || isNaN(parseInt(roomCapacity))) {
+      setErrorMessage('Room number and capacity must be numbers');
+      return;
+    }
+    if (parseInt(roomNumber) <= 0 || parseInt(roomCapacity) <= 0) {
+      setErrorMessage('Room number and capacity must be positive numbers');
+      return;
+    }
+    if (!roomNumber || !roomName || !roomCapacity || !roomLocation) {
+      setErrorMessage('All room specifications are required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/rooms/${selectedRoom.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          roomNumber,
+          name: roomName,
+          capacity: parseInt(roomCapacity, 10),
+          location: roomLocation,
+          isActive: roomActive
+        })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        addNotification(`Room ${roomNumber} updated successfully!`, 'success');
+        setActiveModal(null);
+        setSelectedRoom(null);
+        setRoomNumber('');
+        setRoomName('');
+        setRoomCapacity('');
+        setRoomLocation('');
+        setRoomActive(true);
+        fetchRoomsSilent();
+      } else {
+        setErrorMessage(data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Failed to update room');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecheckPasscodeSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+    if (!accountPassword) {
+      setErrorMessage('Account password is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/bookings/${selectedBooking.id}/recheck-passcode`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: accountPassword })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        addNotification('Identity verified. New passcode generated.', 'success');
+        setCreatedBookingDetails({ passcode: data.data.passcode, isRecheck: true });
+        setActiveModal('success_pin');
+        setAccountPassword('');
+      } else {
+        setErrorMessage(data.message);
+      }
+    } catch (err) {
+      setErrorMessage('Error during password verification process');
     } finally {
       setLoading(false);
     }
@@ -554,13 +652,13 @@ function App() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
+
       {/* 🔔 Floating Notifications */}
       <NotificationToast notifications={notifications} />
 
       {!token ? (
         /* 🔓 Unauthenticated gate */
-        <AuthCard 
+        <AuthCard
           isRegister={isRegister}
           setIsRegister={setIsRegister}
           authName={authName}
@@ -578,9 +676,9 @@ function App() {
       ) : (
         /* 🏢 Authenticated Layout Grid */
         <div className="dashboard-grid">
-          
+
           {/* Sidebar Navigation */}
-          <Sidebar 
+          <Sidebar
             user={user}
             currentView={currentView}
             setCurrentView={setCurrentView}
@@ -605,8 +703,8 @@ function App() {
                   {currentView === 'admin_rooms' && 'Add new rooms or soft-delete current listings'}
                 </p>
               </div>
-              <button 
-                onClick={currentView.startsWith('admin') ? fetchBookings : fetchRooms} 
+              <button
+                onClick={currentView.startsWith('admin') ? fetchBookings : fetchRooms}
                 className="btn btn-secondary btn-icon"
                 disabled={loading}
               >
@@ -615,12 +713,12 @@ function App() {
             </header>
 
             {errorMessage && (
-              <div style={{ 
-                background: 'var(--danger-light)', 
-                color: 'var(--danger)', 
-                padding: '14px', 
-                borderRadius: '10px', 
-                fontSize: '14px', 
+              <div style={{
+                background: 'var(--danger-light)',
+                color: 'var(--danger)',
+                padding: '14px',
+                borderRadius: '10px',
+                fontSize: '14px',
                 fontWeight: 600,
                 textAlign: 'left',
                 border: '1px solid rgba(239, 68, 68, 0.15)'
@@ -638,7 +736,7 @@ function App() {
             ) : (
               <>
                 {!isAdminMode ? (
-                  <UserDashboard 
+                  <UserDashboard
                     currentView={currentView}
                     bookings={bookings}
                     rooms={rooms}
@@ -647,6 +745,7 @@ function App() {
                     setSelectedBooking={setSelectedBooking}
                     setSelectedRoom={setSelectedRoom}
                     setActionPasscode={setActionPasscode}
+                    setAccountPassword={setAccountPassword}
                     setErrorMessage={setErrorMessage}
                     setActiveModal={setActiveModal}
                     setBookingStart={setBookingStart}
@@ -654,17 +753,19 @@ function App() {
                     setCurrentView={setCurrentView}
                   />
                 ) : (
-                  <AdminDashboard 
+                  <AdminDashboard
                     currentView={currentView}
                     bookings={bookings}
                     rooms={rooms}
                     formatDate={formatDate}
                     setErrorMessage={setErrorMessage}
                     setActiveModal={setActiveModal}
+                    setSelectedRoom={setSelectedRoom}
                     setRoomNumber={setRoomNumber}
                     setRoomName={setRoomName}
                     setRoomCapacity={setRoomCapacity}
                     setRoomLocation={setRoomLocation}
+                    setRoomActive={setRoomActive}
                     handleDeleteRoom={handleDeleteRoom}
                     handleForceUpdateStatus={handleForceUpdateStatus}
                   />
@@ -676,7 +777,7 @@ function App() {
       )}
 
       {/* Pop-up dialogs overlay */}
-      <Modals 
+      <Modals
         activeModal={activeModal}
         selectedRoom={selectedRoom}
         selectedBooking={selectedBooking}
@@ -701,6 +802,10 @@ function App() {
         setRoomCapacity={setRoomCapacity}
         roomLocation={roomLocation}
         setRoomLocation={setRoomLocation}
+        roomActive={roomActive}
+        setRoomActive={setRoomActive}
+        accountPassword={accountPassword}
+        setAccountPassword={setAccountPassword}
         createdBookingDetails={createdBookingDetails}
         loading={loading}
         user={user}
@@ -709,6 +814,8 @@ function App() {
         handleCheckInSubmit={handleCheckInSubmit}
         handleCancelBookingSubmit={handleCancelBookingSubmit}
         handleCreateRoomSubmit={handleCreateRoomSubmit}
+        handleUpdateRoomSubmit={handleUpdateRoomSubmit}
+        handleRecheckPasscodeSubmit={handleRecheckPasscodeSubmit}
       />
     </div>
   );

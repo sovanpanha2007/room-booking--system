@@ -3,7 +3,8 @@ const asyncHandler = require("../utils/asyncHandler");
 const { ValidationError } = require("../utils/errors");
 
 const getAllRooms = asyncHandler(async (req, res, next) => {
-    const rooms = await roomService.getAllRooms();
+    const isAdmin = req.user && req.user.role === 'ADMIN';
+    const rooms = await roomService.getAllRooms(isAdmin);
     res.status(200).json({ success: true, data: rooms });
 });
 
@@ -26,11 +27,11 @@ const createRoom = asyncHandler(async (req, res, next) => {
 
 const updateRoom = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    const { roomNumber, name, capacity, location } = req.body;
+    const { roomNumber, name, capacity, location, isActive } = req.body;
 
     // Validation
-    if (!roomNumber && !name && capacity === undefined && !location) {
-        throw new ValidationError('At least one field (roomNumber, name, capacity, location) must be provided for update');
+    if (!roomNumber && !name && capacity === undefined && !location && isActive === undefined) {
+        throw new ValidationError('At least one field (roomNumber, name, capacity, location, isActive) must be provided for update');
     }
 
     let parsedCapacity;
@@ -41,7 +42,7 @@ const updateRoom = asyncHandler(async (req, res, next) => {
         }
     }
 
-    const updatedRoom = await roomService.updateRoom(id, { roomNumber, name, capacity: parsedCapacity, location });
+    const updatedRoom = await roomService.updateRoom(id, { roomNumber, name, capacity: parsedCapacity, location, isActive });
     res.status(200).json({ success: true, data: updatedRoom });
 });
 

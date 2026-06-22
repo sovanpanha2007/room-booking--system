@@ -10,6 +10,7 @@ function UserDashboard({
   setSelectedBooking,
   setSelectedRoom,
   setActionPasscode,
+  setAccountPassword,
   setErrorMessage,
   setActiveModal,
   setBookingStart,
@@ -78,6 +79,21 @@ function UserDashboard({
                             }}
                           >
                             Check In
+                          </button>
+                        )}
+
+                        {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '6px 12px', fontSize: '12.5px', color: 'var(--info)' }}
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setAccountPassword('');
+                              setErrorMessage('');
+                              setActiveModal('recheck_passcode');
+                            }}
+                          >
+                            Recheck Passcode
                           </button>
                         )}
 

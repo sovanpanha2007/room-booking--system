@@ -1,5 +1,5 @@
 import React from 'react';
-import { Info, Plus, Trash2 } from 'lucide-react';
+import { Info, Plus, Trash2, Edit } from 'lucide-react';
 
 function AdminDashboard({ 
   currentView, 
@@ -8,10 +8,12 @@ function AdminDashboard({
   formatDate, 
   setErrorMessage, 
   setActiveModal, 
+  setSelectedRoom,
   setRoomNumber, 
   setRoomName, 
   setRoomCapacity, 
   setRoomLocation, 
+  setRoomActive,
   handleDeleteRoom, 
   handleForceUpdateStatus 
 }) {
@@ -133,13 +135,31 @@ function AdminDashboard({
                     </span>
                   </td>
                   <td>
-                    <button 
-                      className="btn btn-secondary btn-icon"
-                      style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.1)' }}
-                      onClick={() => handleDeleteRoom(room.id, room.roomNumber)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <button 
+                        className="btn btn-secondary btn-icon"
+                        style={{ color: 'var(--primary)', borderColor: 'rgba(99, 102, 241, 0.1)' }}
+                        onClick={() => {
+                          setErrorMessage('');
+                          setSelectedRoom(room);
+                          setRoomNumber(room.roomNumber);
+                          setRoomName(room.name);
+                          setRoomCapacity(room.capacity.toString());
+                          setRoomLocation(room.location);
+                          setRoomActive(room.isActive);
+                          setActiveModal('room_edit');
+                        }}
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button 
+                        className="btn btn-secondary btn-icon"
+                        style={{ color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.1)' }}
+                        onClick={() => handleDeleteRoom(room.id, room.roomNumber)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -2,10 +2,10 @@ const prisma = require('../utils/prisma.js');
 const { ConflictError, NotFoundError } = require('../utils/errors');
 const websocketService = require('./websocket.service');
 
-async function getAllRooms() {
-    // Return all active rooms, ordered by room number for structured viewing
+async function getAllRooms(showAll = false) {
+    const filter = showAll ? {} : { isActive: true };
     return await prisma.room.findMany({
-        where: { isActive: true },
+        where: filter,
         orderBy: { roomNumber: 'asc' }
     });
 }
@@ -66,14 +66,14 @@ async function updateRoom(id, updateData) {
         where: { id }
     });
 
-    if (!room || !room.isActive) {
+    if (!room) {
         throw new NotFoundError('Room not found');
     }
 
     // Check unique room number conflict if it's being changed
     if (updateData.roomNumber && updateData.roomNumber !== room.roomNumber) {
         const existingRoom = await prisma.room.findFirst({
-            where: { roomNumber: updateData.roomNumber, isActive: true }
+            where: { roomNumber: updateData.roomNumber }
         });
         if (existingRoom) {
             throw new ConflictError(`Room number ${updateData.roomNumber} is already taken`);
@@ -92,6 +92,20 @@ async function updateRoom(id, updateData) {
         where: { id },
         data: cleanData
     });
+
+    // If room is updated to isActive = false, cancel all future pending/confirmed bookings for it
+    if (cleanData.isActive === false) {
+        await prisma.booking.updateMany({
+            where: {
+                roomId: id,
+                status: { in: ['PENDING', 'CONFIRMED'] },
+                startTime: { gte: new Date() }
+            },
+            data: {
+                status: 'CANCELLED'
+            }
+        });
+    }
 
     websocketService.broadcast('room_updated', updatedRoom);
     return updatedRoom;

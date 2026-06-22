@@ -26,6 +26,10 @@ function Modals({
   setRoomCapacity,
   roomLocation,
   setRoomLocation,
+  roomActive,
+  setRoomActive,
+  accountPassword,
+  setAccountPassword,
   createdBookingDetails,
   loading,
   user,
@@ -33,7 +37,9 @@ function Modals({
   handleCreateBookingSubmit,
   handleCheckInSubmit,
   handleCancelBookingSubmit,
-  handleCreateRoomSubmit
+  handleCreateRoomSubmit,
+  handleUpdateRoomSubmit,
+  handleRecheckPasscodeSubmit
 }) {
   if (!activeModal) return null;
 
@@ -248,10 +254,12 @@ function Modals({
             <CheckCircle size={28} />
           </div>
           <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '22px', color: 'var(--text-title)', marginBottom: '8px' }}>
-            Booking Registered!
+            {createdBookingDetails.isRecheck ? 'Passcode Retrieved!' : 'Booking Registered!'}
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>
-            Your room has been reserved. A confirmation email has been queued.
+            {createdBookingDetails.isRecheck 
+              ? 'Your identity has been verified. The passcode has been updated and a notification has been sent to your email.'
+              : 'Your room has been reserved. A confirmation email has been queued.'}
           </p>
 
           <div style={{ 
@@ -328,6 +336,7 @@ function Modals({
                 id="room-cap" 
                 className="input-field" 
                 placeholder="e.g. 12" 
+                min="1"
                 value={roomCapacity}
                 onChange={(e) => setRoomCapacity(e.target.value)}
                 required 
@@ -353,6 +362,143 @@ function Modals({
               </button>
               <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
                 {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Create Room'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal F: Admin Edit Room Form */}
+      {activeModal === 'room_edit' && selectedRoom && (
+        <div className="modal-content card glass-panel">
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '20px', color: 'var(--text-title)', marginBottom: '4px', textAlign: 'left' }}>
+            Update Meeting Room
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', textAlign: 'left', marginBottom: '20px' }}>
+            Modify specifications for the physical workspace (Room: {selectedRoom.roomNumber}).
+          </p>
+
+          {errorMessage && (
+            <div style={{ background: 'var(--danger-light)', color: 'var(--danger)', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', textAlign: 'left' }}>
+              {errorMessage}
+            </div>
+          )}
+
+          <form onSubmit={handleUpdateRoomSubmit}>
+            <div className="input-group">
+              <label htmlFor="edit-room-num">Room Number (Unique)</label>
+              <input 
+                type="text" 
+                id="edit-room-num" 
+                className="input-field" 
+                placeholder="e.g. 402" 
+                value={roomNumber}
+                onChange={(e) => setRoomNumber(e.target.value)}
+                required 
+              />
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="edit-room-name">Room Name</label>
+              <input 
+                type="text" 
+                id="edit-room-name" 
+                className="input-field" 
+                placeholder="e.g. Design Studio A" 
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                required 
+              />
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="edit-room-cap">Seating Capacity</label>
+              <input 
+                type="number" 
+                id="edit-room-cap" 
+                className="input-field" 
+                placeholder="e.g. 12" 
+                min="1"
+                value={roomCapacity}
+                onChange={(e) => setRoomCapacity(e.target.value)}
+                required 
+              />
+            </div>
+
+            <div className="input-group">
+              <label htmlFor="edit-room-loc">Building Location</label>
+              <input 
+                type="text" 
+                id="edit-room-loc" 
+                className="input-field" 
+                placeholder="e.g. 4th Floor, East Wing" 
+                value={roomLocation}
+                onChange={(e) => setRoomLocation(e.target.value)}
+                required 
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '14px 0', justifyContent: 'flex-start' }}>
+              <input 
+                type="checkbox" 
+                id="edit-room-active" 
+                checked={roomActive}
+                onChange={(e) => setRoomActive(e.target.checked)}
+                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+              />
+              <label htmlFor="edit-room-active" style={{ fontSize: '13.5px', cursor: 'pointer', fontWeight: 600, color: 'var(--text-title)' }}>
+                Active Status (Visible to users for booking)
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setActiveModal(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
+                {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Update Room'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Modal G: Recheck Passcode (Verify account password to retrieve/regenerate passcode) */}
+      {activeModal === 'recheck_passcode' && selectedBooking && (
+        <div className="modal-content card glass-panel">
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '20px', color: 'var(--text-title)', marginBottom: '4px', textAlign: 'left' }}>
+            Verify Password to Recheck Passcode
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', textAlign: 'left', marginBottom: '20px' }}>
+            Please enter your account password to verify identity and retrieve/regenerate the passcode.
+          </p>
+
+          {errorMessage && (
+            <div style={{ background: 'var(--danger-light)', color: 'var(--danger)', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', textAlign: 'left' }}>
+              {errorMessage}
+            </div>
+          )}
+
+          <form onSubmit={handleRecheckPasscodeSubmit}>
+            <div className="input-group">
+              <label htmlFor="recheck-password">Account Password</label>
+              <input 
+                type="password" 
+                id="recheck-password" 
+                className="input-field" 
+                placeholder="Enter your account password" 
+                value={accountPassword}
+                onChange={(e) => setAccountPassword(e.target.value)}
+                required 
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setActiveModal(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={loading}>
+                {loading ? <RefreshCw className="animate-spin" size={18} /> : 'Verify & Show Passcode'}
               </button>
             </div>
           </form>

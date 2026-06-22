@@ -121,10 +121,36 @@ const checkInBooking = asyncHandler(async (req, res, next) => {
     res.status(200).json({ success: true, data: checkedInBooking });
 });
 
+const recheckPasscode = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+    const { password } = req.body;
+    const { userId, role } = req.user;
+
+    if (!password) {
+        throw new ValidationError('Account password is required to recheck passcode');
+    }
+
+    const { booking, rawPasscode } = await bookingService.recheckPasscode({
+        id,
+        password,
+        userId,
+        role
+    });
+
+    res.status(200).json({
+        success: true,
+        data: {
+            booking,
+            passcode: rawPasscode
+        }
+    });
+});
+
 module.exports = {
     createBooking,
     getBookings,
     updateBookingById,
     cancelBooking,
-    checkInBooking
+    checkInBooking,
+    recheckPasscode
 };
